@@ -384,6 +384,53 @@ static gboolean gst_imx_v4l2_buffer_pool_stop(GstBufferPool *bpool)
 	return ret;
 }
 
+gboolean gst_imx_v4l2_buffer_pool_resync(GstImxV4l2BufferPool *pool)
+{
+	enum v4l2_buf_type type;
+	guint i;
+
+	GST_DEBUG_OBJECT(pool, "VIDIOC_STREAMOFF");
+	type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (ioctl(GST_IMX_FD_OBJECT_GET_FD(pool->fd_obj_v4l), VIDIOC_STREAMOFF, &type) < 0)
+	{
+		GST_ERROR_OBJECT(pool, "VIDIOC_STREAMOFF error: %s", g_strerror(errno));
+		return FALSE;
+	}
+
+	for (i = 0; i < pool->num_buffers; i++)
+	{
+		if (pool->buffers[i])
+		{
+			GstImxV4l2Meta *meta;
+
+			meta = GST_IMX_V4L2_META_GET(pool->buffers[i]);
+			if (!meta)
+			{
+				continue;
+			}
+
+			GST_DEBUG_OBJECT(pool, "qbuf %u %p", meta->vbuffer.index, (gpointer)pool->buffers[i]);
+
+			if (ioctl(GST_IMX_FD_OBJECT_GET_FD(pool->fd_obj_v4l), VIDIOC_QBUF, &meta->vbuffer) < 0)
+			{
+				GST_ERROR("VIDIOC_QBUF error: %s",
+					g_strerror(errno));
+				return FALSE;
+			}
+		}
+	}
+
+	GST_DEBUG_OBJECT(pool, "VIDIOC_STREAMON");
+	type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (ioctl(GST_IMX_FD_OBJECT_GET_FD(pool->fd_obj_v4l), VIDIOC_STREAMON, &type) < 0)
+	{
+		GST_ERROR_OBJECT(pool, "VIDIOC_STREAMON error: %s", g_strerror(errno));
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 static void gst_imx_v4l2_buffer_pool_init(GstImxV4l2BufferPool *pool)
 {
 	GST_DEBUG_OBJECT(pool, "initializing V4L2 buffer pool");

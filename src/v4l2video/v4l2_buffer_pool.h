@@ -63,6 +63,8 @@ GType gst_imx_v4l2_buffer_pool_get_type(void);
 GstBufferPool *gst_imx_v4l2_buffer_pool_new(GstImxFDObject *fd_obj_v4l, guint metaCropX,
 					    guint metaCropY, guint metaCropWidth, guint metaCropHeight);
 
+gboolean gst_imx_v4l2_buffer_pool_resync(GstImxV4l2BufferPool *pool);
+
 struct _GstImxV4l2Meta {
   GstMeta meta;
 
