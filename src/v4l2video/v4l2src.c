@@ -144,6 +144,7 @@ static gboolean gst_imx_v4l2src_is_tvin(GstImxV4l2VideoSrc *v4l2src, gint fd_v4l
 	if (std_id == V4L2_STD_UNKNOWN)
 		return FALSE;
 
+	return FALSE;
 	if (std_id & V4L2_STD_525_60)
 		v4l2src->fps_n = (!v4l2src->fps_n || v4l2src->fps_n > 30) ? 30 : v4l2src->fps_n;
 	else
@@ -443,21 +444,25 @@ static gboolean gst_imx_v4l2src_decide_allocation(GstBaseSrc *bsrc,
 	return TRUE;
 }
 
+GstClockTime basetime;
+
 static GstFlowReturn gst_imx_v4l2src_fill(GstPushSrc *src, GstBuffer *buf)
 {
 	GstImxV4l2VideoSrc *v4l2src = GST_IMX_V4L2SRC(src);
-	GstClockTime ts;
+	GstClockTime pts;
 
 	GST_LOG_OBJECT(v4l2src, "fill");
-
-	ts = gst_clock_get_time(GST_ELEMENT(v4l2src)->clock);
-	if (ts != GST_CLOCK_TIME_NONE)
-		ts -= gst_element_get_base_time(GST_ELEMENT(v4l2src));
-	else
-		ts = v4l2src->count * v4l2src->time_per_frame;
+	pts = buf->pts;
+	if(v4l2src->count <= 1) {
+		GstClockTime ts = gst_clock_get_time(GST_ELEMENT(v4l2src)->clock) - gst_element_get_base_time(GST_ELEMENT(v4l2src));
+		g_print("setting basetime to %llu\n", basetime);
+		basetime = pts - ts;
+	}
+	pts -= basetime;
 	v4l2src->count++;
+	g_print("setting timestamp to %llu\n", pts);
 
-	GST_BUFFER_TIMESTAMP(buf) = ts;
+	GST_BUFFER_TIMESTAMP(buf) = pts;
 	GST_BUFFER_DURATION(buf) = v4l2src->time_per_frame;
 	return GST_FLOW_OK;
 }
