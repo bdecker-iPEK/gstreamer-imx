@@ -434,17 +434,16 @@ static GstFlowReturn gst_imx_v4l2src_fill(GstPushSrc *src, GstBuffer *buf)
 
 	GST_LOG_OBJECT(v4l2src, "fill");
 
-	if (v4l2src->count < 1)
-	{
-		v4l2src->offset = pts;
-		GST_BUFFER_TIMESTAMP(buf) = 0;
-	}
-	else
-	{
-		GST_BUFFER_TIMESTAMP(buf) = pts - v4l2src->offset;
-	}
+	GstClock* clock = gst_element_get_clock(GST_ELEMENT(v4l2src));
+	GstClockTime now_gst = gst_clock_get_time(clock);
+	gst_object_unref(clock);
+
+	struct timespec now_tod;
+	clock_gettime (CLOCK_REALTIME, &now_tod);
+	GstClockTime now_tod_ns = GST_TIMESPEC_TO_TIME(now_tod);
 
 	v4l2src->count++;
+	GST_BUFFER_TIMESTAMP(buf) = pts + now_gst - now_tod_ns - gst_element_get_base_time(GST_ELEMENT(v4l2src));
 	GST_BUFFER_DURATION(buf) = v4l2src->time_per_frame;
 	return GST_FLOW_OK;
 }

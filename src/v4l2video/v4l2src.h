@@ -59,7 +59,6 @@ struct _GstImxV4l2VideoSrc
 	gint capture_height;
 	guint32 count;
 	GstClockTime time_per_frame;
-	GstClockTime offset;
 
 	GMutex af_mutex;
 	GstPhotographyFocusMode focus_mode;
