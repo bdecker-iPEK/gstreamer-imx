@@ -42,6 +42,7 @@
 #define DEFAULT_CROP_META_Y 0
 #define DEFAULT_CROP_META_WIDTH 0
 #define DEFAULT_CROP_META_HEIGHT 0
+#define DEFAULT_RESYNC 0
 
 enum
 {
@@ -57,6 +58,7 @@ enum
 	IMX_V4L2SRC_CROP_META_Y,
 	IMX_V4L2SRC_CROP_META_WIDTH,
 	IMX_V4L2SRC_CROP_META_HEIGHT,
+	IMX_V4L2SRC_RESYNC,
 
 	/* Properties required to be recongnized by GstPhotography implementor */
 	PROP_WB_MODE,
@@ -725,6 +727,17 @@ static void gst_imx_v4l2src_set_property(GObject *object, guint prop_id,
 			v4l2src->metaCropHeight = g_value_get_int(value);
 			break;
 
+		case IMX_V4L2SRC_RESYNC: {
+			GstBufferPool *pool;
+
+			g_assert (GST_STATE (v4l2src) == GST_STATE_PAUSED);
+			pool = gst_base_src_get_buffer_pool(GST_BASE_SRC(v4l2src));
+
+			gst_imx_v4l2_buffer_pool_resync(GST_IMX_V4L2_BUFFER_POOL(pool));
+
+			gst_object_unref(pool);
+			break;
+                }
 		case PROP_FOCUS_MODE:
 			gst_imx_v4l2src_set_focus_mode(GST_PHOTOGRAPHY(v4l2src), g_value_get_enum(value));
 			break;
@@ -1027,6 +1040,12 @@ static void gst_imx_v4l2src_class_init(GstImxV4l2VideoSrcClass *klass)
 				"HEIGHT value for crop metadata",
 				0, G_MAXINT, DEFAULT_CROP_META_HEIGHT,
 				G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+	g_object_class_install_property(gobject_class, IMX_V4L2SRC_RESYNC,
+			g_param_spec_boolean("resync", "Resync",
+				"Resync by going through STREAMOFF/STREAMON",
+				DEFAULT_CROP_META_HEIGHT,
+				G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
 
 	/* Being GstPhotography implementation implies overriding all properties
 	 * defined by GstPhotography */
