@@ -137,23 +137,7 @@ static gboolean gst_imx_v4l2src_is_tvin(GstImxV4l2VideoSrc *v4l2src, gint fd_v4l
 		if (ioctl(fd_v4l, VIDIOC_G_STD, &std_id) < 0)
 			break;
 	}
-
-	if (ioctl(fd_v4l, VIDIOC_S_STD, &std_id) < 0)
-		GST_WARNING_OBJECT(v4l2src, "VIDIOC_S_STD failed: %s", strerror(errno));
-
-	if (std_id == V4L2_STD_UNKNOWN)
-		return FALSE;
-
-	if (std_id & V4L2_STD_525_60)
-		v4l2src->fps_n = (!v4l2src->fps_n || v4l2src->fps_n > 30) ? 30 : v4l2src->fps_n;
-	else
-		v4l2src->fps_n = (!v4l2src->fps_n || v4l2src->fps_n > 25) ? 25 : v4l2src->fps_n;
-
-	GST_DEBUG_OBJECT(v4l2src,
-		"found TV decoder: adjusted fps = %d/%d, std_id = %#" G_GINT64_MODIFIER "x",
-		v4l2src->fps_n, v4l2src->fps_d, std_id);
-
-	return TRUE;
+	return FALSE;
 }
 
 static gint gst_imx_v4l2src_capture_setup(GstImxV4l2VideoSrc *v4l2src)
@@ -446,18 +430,21 @@ static gboolean gst_imx_v4l2src_decide_allocation(GstBaseSrc *bsrc,
 static GstFlowReturn gst_imx_v4l2src_fill(GstPushSrc *src, GstBuffer *buf)
 {
 	GstImxV4l2VideoSrc *v4l2src = GST_IMX_V4L2SRC(src);
-	GstClockTime ts;
+	GstClockTime pts = buf->pts;
 
 	GST_LOG_OBJECT(v4l2src, "fill");
 
-	ts = gst_clock_get_time(GST_ELEMENT(v4l2src)->clock);
-	if (ts != GST_CLOCK_TIME_NONE)
-		ts -= gst_element_get_base_time(GST_ELEMENT(v4l2src));
+	if (v4l2src->count < 1)
+	{
+		v4l2src->offset = pts;
+		GST_BUFFER_TIMESTAMP(buf) = 0;
+	}
 	else
-		ts = v4l2src->count * v4l2src->time_per_frame;
-	v4l2src->count++;
+	{
+		GST_BUFFER_TIMESTAMP(buf) = pts - v4l2src->offset;
+	}
 
-	GST_BUFFER_TIMESTAMP(buf) = ts;
+	v4l2src->count++;
 	GST_BUFFER_DURATION(buf) = v4l2src->time_per_frame;
 	return GST_FLOW_OK;
 }
